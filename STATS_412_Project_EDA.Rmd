@@ -1,0 +1,137 @@
+---
+title: "STATS_412_Project_EDA"
+author: "Lisa Kaunitz, TianShu Fan, Jaehee Jeong"
+date: "11/20/2021"
+output:
+  pdf_document: default
+  html_document: default
+---
+```{r library}
+library(tidyverse)
+library(DataExplorer) # eda
+library(pls) # pcr
+library(glmnet) #cv.glmnet
+```
+
+```{r df}
+df <- read.csv(file ='kc_house_data.csv')
+head(df)
+colnames(df)
+dim(df)
+```
+
+
+```{r cleaning}
+# Check missing values
+sum(is.na(df))
+str(df)
+
+# Change date from chr to date format
+
+df$date <- str_sub(df$date,1,8)
+df$date<-as.Date(df$date, format =  "%Y%m%d")
+
+str(df)
+
+# Add a feature if there is a basement then 1 else 0
+
+for(i in 1: nrow(df)){
+    if (df$sqft_basement[i] >0) {
+  df$sqft_basement_yesno[i] <- 1
+  } else {
+  df$sqft_basement_yesno[i] <- 0
+  }
+}
+
+str(df)
+```
+
+```{r eda}
+#DataExplorer::create_report(df)
+```
+
+```{r model}
+# split the data to a train set(80%) and a test set(20%)
+set.seed(101)
+train = sample(1:nrow(df), 4*nrow(df) / 5)
+
+# We don't want to use ID as a factor
+df_train <- df[train,c(2:22)]
+df_test <- df[-train,c(2:22)]
+
+# define a rmse function
+rmse <- function(y_hat, y) sqrt(mean((y_hat - y)^2))
+
+############################################################################
+# Model1 - Linear regression
+############################################################################
+
+m1_lm <- lm(price ~ ., data=df_train)
+# I am not sure why sqft_basement factor is not applicable
+summary(m1_lm)
+
+############################################################################
+# Model2 - Linear regression using step function
+############################################################################
+
+m2_lm_step <- step(lm(price ~.,data=df_train),direction = "backward",trace = F)
+summary(m2_lm_step)
+
+############################################################################
+# Model3 - PCR
+############################################################################
+
+set.seed(101)
+m3_pcr <- pcr(price ~ ., data=df_train,scale = T, validation="CV"
+                 , ncomp=20, segments = 10)
+summary(m3_pcr)
+
+# plot of CV error 1 computing manually using the class notes
+pcrCV <- RMSEP(m3_pcr, estimate="CV")
+plot(pcrCV, main = "cross-validation plots")
+which.min(pcrCV$val) -1 # remove the intercept
+
+############################################################################
+# Model4 - Ridge regression
+############################################################################
+lambdas_to_try = lambda=seq(0.001,0.1, by=0.001)
+set.seed(101)
+
+# There is an error because of the date format. We need to figure this out.
+# For now, I didn't include date factor.
+m4_ridge <- cv.glmnet(as.matrix(df_train[,c(3:20)]), df_train$price, alpha = 0
+                      , lambda = lambdas_to_try
+                      ,standardize = TRUE, nfolds =10)
+plot(m4_ridge$glmnet.fit,xvar = "lambda", label = T)
+plot(m4_ridge)
+m4_ridge$lambda.min
+
+############################################################################
+# Model5 - Lasso
+############################################################################
+set.seed(101)
+m5_lasso <- cv.glmnet(as.matrix(df_train[,c(3:20)]), df_train$price, alpha = 1,
+                      lambda = lambdas_to_try,
+                      standardize = TRUE, nfolds = 10)
+plot(m5_lasso$glmnet.fit,xvar = "lambda", label = T)
+m5_lasso$lambda.min
+
+############################################################################
+# Create a df showing all the rmse values
+############################################################################
+rmse_colnames<-c("Model1-lm","Model2-lm_step","Model3-pcr", "Model4-Ridge"
+                 , "Model5-Lasso")
+rmse_result <-c( rmse(predict(m1_lm, df_test), df_test$price)
+             ,rmse(predict(m2_lm_step, df_test), df_test$price)
+             ,rmse(predict(m3_pcr, df_test, ncomp = 15), df_test$price)
+             ,rmse(predict(m4_ridge, newx = as.matrix(df_test[,c(3:20)])
+                  , s=m4_ridge$lambda.min)
+                  ,df_test$price)
+             ,rmse(predict(m5_lasso, newx = as.matrix(df_test[,c(3:20)])
+                  , s=m5_lasso$lambda.min)
+                  ,df_test$price)
+             )
+
+result_df <- data.frame(rmse_colnames,rmse_result)
+result_df
+```
