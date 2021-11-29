@@ -31,8 +31,6 @@ library(Metrics)
 ```{r}
 house <- read_csv("/Users/jaeheejeong/Desktop/UCLA/412-Advanced Regression and Predictive Modeling/Project/STAT_412/kc_house_data.csv")
 # View(house)
-
-summary(house)
 ```
 
 
@@ -43,6 +41,8 @@ Variables with the highest correlation with `price`:
 - sqft_living15
 - bathrooms
 
+Added 5 more variables
+- lat, bedrooms, floors, sqft_basement, view
 
 # Cleaning Data
 
@@ -67,7 +67,6 @@ for(i in 1: nrow(house)){
 house<-house[,-1]
 
 # tbd: as.factor (depending on random forest output)
-
 ```
 
 # EDA 
@@ -75,6 +74,8 @@ house<-house[,-1]
 ```{r}
 #create_report(house)
 summary(house)
+# calculate standard deviation
+round(sapply(house, sd),2)
 
 ggplot(house, aes(x=date, y = price))+
   geom_line()+
