@@ -29,9 +29,8 @@ library(Metrics)
 # Import Data
 
 ```{r}
-house <- read_csv("~/Desktop/STAT 412/kc_house_data.csv")
+house <- read_csv("/Users/jaeheejeong/Desktop/UCLA/412-Advanced Regression and Predictive Modeling/Project/STAT_412/kc_house_data.csv")
 # View(house)
-# create_report(house)
 
 summary(house)
 ```
@@ -56,13 +55,16 @@ house <- subset(house, price >= Lower & price <= Upper)
 summary(house)
 
 # Add a feature if there is a basement then 1 else 0
-for(i in 1: nrow(df)){
-    if (df$sqft_basement[i] >0) {
-  df$sqft_basement_yesno[i] <- 1
+for(i in 1: nrow(house)){
+    if (house$sqft_basement[i] >0) {
+  house$sqft_basement_yesno[i] <- 1
   } else {
-  df$sqft_basement_yesno[i] <- 0
+  house$sqft_basement_yesno[i] <- 0
   }
 }
+
+# drop id
+house<-house[,-1]
 
 # tbd: as.factor (depending on random forest output)
 
@@ -71,6 +73,9 @@ for(i in 1: nrow(df)){
 # EDA 
 
 ```{r}
+#create_report(house)
+summary(house)
+
 ggplot(house, aes(x=date, y = price))+
   geom_line()+
   xlab('Date')+
@@ -84,7 +89,6 @@ ggplot(house)+
   geom_histogram(col = 'black', bins = 20) +
   ggtitle("Distribution of Price (no transformation)") +
   theme_bw()
-
 
 # log transform 
 house$log_price <- log(house$price)
