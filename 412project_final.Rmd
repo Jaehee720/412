@@ -117,7 +117,7 @@ ggplot(house)+
 # Drop id: No meaning
 # Drop zipcode: We have latitude and longitude info
 # Drop sqft_basement: I have sqft_basement_yesno feature
-drop <- c('date','id','zipcode','sqft_basement')
+drop <- c('date','id','zipcode','sqft_basement','log_price')
 house <- house[!names(house) %in% drop]
 summary(house)
 dim(house)
