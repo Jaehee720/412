@@ -125,7 +125,7 @@ num_ob_af_drop <- dim(house)[1]
 
 num_ob_af_drop/num_ob_bf_drop*100
 
-#DataExplorer::create_report(df)
+#DataExplorer::create_report(house)
 ```
 
 ### Creating randomForest Model to know important features
