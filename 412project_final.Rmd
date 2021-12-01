@@ -37,6 +37,7 @@ set.seed(1)
 house <- read.csv('house.csv')
 head(house)
 dim(house)
+num_ob_bf_drop <- dim(house)[1]
 
 # Add a feature if there is a basement then 1 else 0
 for(i in 1: nrow(house)){
@@ -47,7 +48,38 @@ for(i in 1: nrow(house)){
   }
 }
 
-#DataExplorer::create_report(df)
+# Distribution of Date
+ggplot(house, aes(x=date, y = price))+
+  geom_line()+
+  xlab('Date')+
+  ylab('Price')+
+  ggtitle('House Prices Over Time') + 
+  theme_bw()
+
+# Boxplot of prices
+ggplot(house)+
+  aes(x=price)+
+  geom_boxplot() +
+  ggtitle("Boxplot of Price") +
+  theme_bw() +
+  scale_x_continuous(labels = function(x) format(x, scientific = FALSE))
+
+# Distribution of price
+ggplot(house)+
+  aes(x=price)+
+  geom_histogram(col = 'black', bins = 20) +
+  ggtitle("Distribution of Price (no transformation)") +
+  theme_bw() +
+  scale_x_continuous(labels = function(x) format(x, scientific = FALSE))
+
+# Get rid of outliers (price-wise)
+summary(house$price)
+first_quartile <- summary(house$price)[[2]]
+third_quartile <- summary(house$price)[[5]]
+IQR <- third_quartile-first_quartile
+Upper <- 1.5*IQR + third_quartile
+Lower <- first_quartile - 1.5*IQR
+house <- subset(house, price >= Lower & price <= Upper)
 
 # Distribution of Date
 ggplot(house, aes(x=date, y = price))+
@@ -57,12 +89,21 @@ ggplot(house, aes(x=date, y = price))+
   ggtitle('House Prices Over Time') + 
   theme_bw()
 
+# Boxplot of prices
+ggplot(house)+
+  aes(x=price)+
+  geom_boxplot() +
+  ggtitle("Boxplot of Price") +
+  theme_bw() +
+  scale_x_continuous(labels = function(x) format(x, scientific = FALSE))
+
 # Distribution of price
 ggplot(house)+
   aes(x=price)+
   geom_histogram(col = 'black', bins = 20) +
   ggtitle("Distribution of Price (no transformation)") +
-  theme_bw()
+  theme_bw() +
+  scale_x_continuous(labels = function(x) format(x, scientific = FALSE))
 
 # Distribution of price using log transform 
 house$log_price <- log(house$price)
@@ -72,12 +113,6 @@ ggplot(house)+
   ggtitle("Distribution of Price (log transformation)") +
   theme_bw()
 
-# Get rid of outliers (price-wise)
-IQR <- 645000-321950
-Upper <- 1.5*IQR + 540088
-Lower <- 540088 - 1.5*IQR
-house <- subset(house, price >= Lower & price <= Upper)
-
 # Drop date: No relationshop is detected
 # Drop id: No meaning
 # Drop zipcode: We have latitude and longitude info
@@ -86,6 +121,11 @@ drop <- c('date','id','zipcode','sqft_basement')
 house <- house[!names(house) %in% drop]
 summary(house)
 dim(house)
+num_ob_af_drop <- dim(house)[1]
+
+num_ob_af_drop/num_ob_bf_drop*100
+
+#DataExplorer::create_report(df)
 ```
 
 ### Creating randomForest Model to know important features
