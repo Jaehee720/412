@@ -24,17 +24,12 @@ dim(df)
 ```{r cleaning}
 # Check missing values
 sum(is.na(df))
-str(df)
 
 # Change date from chr to date format
-
 df$date <- str_sub(df$date,1,8)
 df$date<-as.Date(df$date, format =  "%Y%m%d")
 
-str(df)
-
 # Add a feature if there is a basement then 1 else 0
-
 for(i in 1: nrow(df)){
     if (df$sqft_basement[i] >0) {
   df$sqft_basement_yesno[i] <- 1
@@ -97,8 +92,6 @@ which.min(pcrCV$val) -1 # remove the intercept
 lambdas_to_try = lambda=seq(0.001,0.1, by=0.001)
 set.seed(101)
 
-# There is an error because of the date format. We need to figure this out.
-# For now, I didn't include date factor.
 m4_ridge <- cv.glmnet(as.matrix(df_train[,c(3:20)]), df_train$price, alpha = 0
                       , lambda = lambdas_to_try
                       ,standardize = TRUE, nfolds =10)
@@ -117,10 +110,17 @@ plot(m5_lasso$glmnet.fit,xvar = "lambda", label = T)
 m5_lasso$lambda.min
 
 ############################################################################
+# Model6 - randomForest
+############################################################################
+library(randomForest)
+m6_randomforest <- randomForest(price ~ ., data = df_train, importance = TRUE)
+sort(m6_randomforest$importance)
+
+############################################################################
 # Create a df showing all the rmse values
 ############################################################################
 rmse_colnames<-c("Model1-lm","Model2-lm_step","Model3-pcr", "Model4-Ridge"
-                 , "Model5-Lasso")
+                 , "Model5-Lasso", "Model6-randomforest")
 rmse_result <-c( rmse(predict(m1_lm, df_test), df_test$price)
              ,rmse(predict(m2_lm_step, df_test), df_test$price)
              ,rmse(predict(m3_pcr, df_test, ncomp = 15), df_test$price)
@@ -130,6 +130,7 @@ rmse_result <-c( rmse(predict(m1_lm, df_test), df_test$price)
              ,rmse(predict(m5_lasso, newx = as.matrix(df_test[,c(3:20)])
                   , s=m5_lasso$lambda.min)
                   ,df_test$price)
+             ,rmse(predict(m6_randomforest, df_test), df_test$price)
              )
 
 result_df <- data.frame(rmse_colnames,rmse_result)

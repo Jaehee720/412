@@ -1,0 +1,207 @@
+---
+title: "412 Project"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Data
+```{r wrap-hook}
+library(readr)
+library(dplyr)
+library(ggplot2)
+library(DataExplorer)
+library(lubridate)
+library(caTools)
+library(MASS)
+library(leaps)
+library(caret)
+library(pcr)
+library(pls)
+library(Metrics)
+library(dplyr)
+library(randomForest)
+library(data.table)
+library(leaps)
+library(caTools)
+library(randomForest)
+library(glmnet) #cv.glmnet
+```
+
+### Basic EDA
+```{r}
+set.seed(1)
+
+house <- read.csv('house.csv')
+head(house)
+dim(house)
+
+# Add a feature if there is a basement then 1 else 0
+for(i in 1: nrow(house)){
+    if (house$sqft_basement[i] >0) {
+  house$sqft_basement_yesno[i] <- 1
+  } else {
+  house$sqft_basement_yesno[i] <- 0
+  }
+}
+
+#DataExplorer::create_report(df)
+
+# Distribution of Date
+ggplot(house, aes(x=date, y = price))+
+  geom_line()+
+  xlab('Date')+
+  ylab('Price')+
+  ggtitle('House Prices Over Time') + 
+  theme_bw()
+
+# Distribution of price
+ggplot(house)+
+  aes(x=price)+
+  geom_histogram(col = 'black', bins = 20) +
+  ggtitle("Distribution of Price (no transformation)") +
+  theme_bw()
+
+# Distribution of price using log transform 
+house$log_price <- log(house$price)
+ggplot(house)+
+  aes(x=log_price)+
+  geom_histogram(col = 'black', bins = 20) +
+  ggtitle("Distribution of Price (log transformation)") +
+  theme_bw()
+
+# Get rid of outliers (price-wise)
+IQR <- 645000-321950
+Upper <- 1.5*IQR + 540088
+Lower <- 540088 - 1.5*IQR
+house <- subset(house, price >= Lower & price <= Upper)
+
+# Drop date: No relationshop is detected
+# Drop id: No meaning
+# Drop zipcode: We have latitude and longitude info
+# Drop sqft_basement: I have sqft_basement_yesno feature
+drop <- c('date','id','zipcode','sqft_basement')
+house <- house[!names(house) %in% drop]
+summary(house)
+dim(house)
+```
+
+### Creating randomForest Model to know important features
+```{r}
+house.rf <- randomForest(price ~ ., data = house,
+                         importance = TRUE)
+print(house.rf)
+import <- house.rf$importance
+import
+```
+
+### Save only important feaatures
+```{r}
+keep <- c('price','lat','sqft_living','grade','sqft_living15','sqft_above','long','yr_built','sqft_lot15','sqft_lot','bathrooms')
+house <- house[names(house) %in% keep]
+summary(house)
+```
+
+### We decided not to convert the numerical variables to a factor 
+```{r}
+# house$bathrooms = as.factor(house$bathrooms)
+# house$grade = as.factor(house$grade)
+```
+
+### Split dateset to a train set and a test set
+```{r}
+s = sort(sample(nrow(house), nrow(house)*.7))
+train <- house[s,]
+test <- house[-s,]
+
+# Create a rmse function to test results
+rmse <- function(y_hat, y) sqrt(mean((y_hat - y)^2))
+```
+
+### Create linear Models
+```{r}
+lMod <- lm(price~., data=train)
+summary(lMod)
+rmse(test$price, predict(lMod,test[-1]))
+
+# Use step function
+lstepMod <- step(lMod)
+summary(lstepMod)
+rmse(test$price, predict(lstepMod,test[-1]))
+```
+
+### Create a randomforest model
+```{r}
+rfMod <- randomForest(price ~ ., data = train,
+                         importance = TRUE)
+print(rfMod)
+rmse(test$price, predict(rfMod, test[-1]))
+rfMod$importance
+```
+
+
+# Create PCR models
+```{r}
+set.seed(27)
+pc <- prcomp(house, scale = T)
+summary(pc)
+
+sort(round(pc$rotation[,1], 2))
+
+# PCR
+pcrMod <- pcr(price ~ ., data = train, ncomp = 5)
+
+rmse(predict(pcrMod, nncomp = 5), train$price) # RMSE = 173611.4
+rmse(predict(pcrMod, nncomp = 5), test$price) # RMSE =  219128.2
+
+pcrmse <- RMSEP(pcrMod, newdata = test)
+plot(pcrmse, main = "")
+which.min(pcrmse$val) # 6 pc
+pcrmse$val[6] # 153961.9
+
+# I couldn't find pcrMod_2. Did I delete something?
+#pcrCV <- RMSEP(pcrMod_2, estimate = "CV")
+#plot(pcrmse, main = "PCR vs RMSE")
+```
+
+# Create Ridge/LASSO models
+```{r}
+set.seed(101)
+# Create a ridge model
+lambdas_to_try = lambda=seq(0.001,0.1, by=0.001)
+
+ridgeMod <- cv.glmnet(as.matrix(train[,-1]), train$price, alpha = 0
+                      , lambda = lambdas_to_try
+                      ,standardize = TRUE, nfolds =10)
+plot(ridgeMod$glmnet.fit,xvar = "lambda", label = T)
+plot(ridgeMod)
+ridgeMod$lambda.min
+
+# Create a LASSO model
+lassoMod <- cv.glmnet(as.matrix(train[,-1]), train$price, alpha = 1,
+                      lambda = lambdas_to_try,
+                      standardize = TRUE, nfolds = 10)
+plot(lassoMod$glmnet.fit,xvar = "lambda", label = T)
+lassoMod$lambda.min
+```
+### Create a df showing all the rmse values
+```{r}
+rmse_colnames<-c("Model1-lMod","Model2-lstepMod","Model3-rfMod", "Model4-pcrMod"
+                 , "Model5-Ridge", "Model6-Lasso")
+rmse_result <-c( rmse(predict(lMod, test), test$price)
+             ,rmse(predict(lstepMod, test), test$price)
+             ,rmse(predict(rfMod, test), test$price)
+             ,rmse(predict(pcrMod, nncomp = 5), test$price) 
+             ,rmse(predict(ridgeMod, newx = as.matrix(test[,-1])
+                  , s=ridgeMod$lambda.min)
+                  ,test$price)
+             ,rmse(predict(lassoMod, newx = as.matrix(test[,-1])
+                  , s=lassoMod$lambda.min)
+                  ,test$price)
+             )
+
+result_df <- data.frame(rmse_colnames,rmse_result)
+result_df
+```
