@@ -115,3 +115,34 @@ print(house.rf)
 rmse(test$price, predict(house.rf, test[-1]))
 house.rf$importance
 ```
+
+
+# PCR Model 
+
+```{r}
+set.seed(27)
+
+keep <- c('price','lat','sqft_living','grade','sqft_living15','sqft_above','long','yr_built','sqft_lot15','sqft_lot','bathrooms')
+house <- house[names(house) %in% keep]
+
+pc <- prcomp(house, scale = T)
+summary(pc)
+
+sort(round(pc$rotation[,1], 2))
+
+# PCR
+pcrMod <- pcr(price ~ ., data = train, ncomp = 5)
+
+rmse(predict(pcrMod, nncomp = 5), train$price) # RMSE = 173611.4
+rmse(predict(pcrMod, nncomp = 5), test$price) # RMSE =  219128.2
+
+
+pcrmse <- RMSEP(pcrMod, newdata = test)
+plot(pcrmse, main = "")
+which.min(pcrmse$val) # 6 pc
+pcrmse$val[6] # 153961.9
+
+
+pcrCV <- RMSEP(pcrMod_2, estimate = "CV")
+plot(pcrmse, main = "PCR vs RMSE")
+```
