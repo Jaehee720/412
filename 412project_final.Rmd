@@ -245,3 +245,25 @@ rmse_result <-c( rmse(predict(lMod, test), test$price)
 result_df <- data.frame(rmse_colnames,rmse_result)
 result_df
 ```
+
+
+### Add a residual plot of rfMod
+```{r}
+#Find residuals by subtracting predicted from acutal values
+err <- rfMod$predicted - train$price
+
+#Make data frame holding residuals and fitted values
+df <- data.frame(Residuals=err, Fitted.Values=rfMod$predicted)
+
+#Sort data by fitted values
+df2 <- df[order(df$Fitted.Values),]
+
+#Create plot
+plot(Residuals~Fitted.Values, data=df2)
+
+#Add origin line at (0,0) with grey color #8
+abline(0,0, col=8)
+
+#Add the same smoothing line from lm regression with color red #2
+lines(lowess(df2$Fitted.Values, df2$Residuals), col=2)
+```
