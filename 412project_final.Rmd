@@ -128,6 +128,25 @@ num_ob_af_drop/num_ob_bf_drop*100
 #DataExplorer::create_report(house)
 ```
 
+### Using ridge and lasso to do feature selection
+```{r}
+set.seed(101)
+# Create a ridge model
+lambdas_to_try = lambda=seq(0.001,0.1, by=0.001)
+
+ridgeMod <- cv.glmnet(as.matrix(house[,-1]), house$price, alpha = 0
+                      , lambda = lambdas_to_try
+                      ,standardize = TRUE, nfolds =10)
+summary(ridgeMod)
+
+# Create a LASSO model
+lassoMod <- cv.glmnet(as.matrix(house[,-1]), house$price, alpha = 1,
+                      lambda = lambdas_to_try,
+                      standardize = TRUE, nfolds = 10)
+lassoMod$lambda.min
+summary(lassoMod)
+```
+
 ### Creating randomForest Model to know important features
 ```{r}
 house.rf <- randomForest(price ~ ., data = house,
