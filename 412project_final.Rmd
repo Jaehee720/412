@@ -132,19 +132,58 @@ num_ob_af_drop/num_ob_bf_drop*100
 ```{r}
 set.seed(101)
 # Create a ridge model
-lambdas_to_try = lambda=seq(0.001,0.1, by=0.001)
+lambda = lambda=seq(0.001,0.1, by=0.001)
 
-ridgeMod <- cv.glmnet(as.matrix(house[,-1]), house$price, alpha = 0
+ridge_model <- cv.glmnet(as.matrix(house[,-1]), house$price, alpha = 0
                       , lambda = lambdas_to_try
                       ,standardize = TRUE, nfolds =10)
+
+ridge_model$lambda.min
+
+best_lambda_ridge <- ridge_model$lambda.1se  # largest lambda in 1 SE
+ridge_coef <- ridge_model$glmnet.fit$beta[,  # retrieve coefficients
+              ridge_model$glmnet.fit$lambda  # at lambda.1se
+              == best_lambda_ridge]
+coef_r = data.table(ridge = ridge_coef)      # build table
+coef_r[, feature := names(ridge_coef)]       # add feature names
+to_plot_r = melt(coef_r                      # label table
+               , id.vars='feature'
+               , variable.name = 'model'
+               , value.name = 'coefficient')
+ggplot(data=to_plot_r,                       # plot coefficients
+       aes(x=feature, y=coefficient, fill=model)) +
+       coord_flip() +         
+       geom_bar(stat='identity', fill='brown4', color='blue') +
+       facet_wrap(~ model) + guides(fill=FALSE) 
+
 summary(ridgeMod)
 
+
 # Create a LASSO model
-lassoMod <- cv.glmnet(as.matrix(house[,-1]), house$price, alpha = 1,
+lasso_model <- cv.glmnet(as.matrix(house[,-1]), house$price, alpha = 1,
                       lambda = lambdas_to_try,
                       standardize = TRUE, nfolds = 10)
-lassoMod$lambda.min
-summary(lassoMod)
+lasso_model$lambda.min
+
+best_lambda_lasso <- lasso_model$lambda.1se  # largest lambda in 1 SE
+lasso_coef <- lasso_model$glmnet.fit$beta[,  # retrieve coefficients
+              lasso_model$glmnet.fit$lambda  # at lambda.1se
+              == best_lambda_lasso]
+coef_l = data.table(lasso = lasso_coef)      # build table
+coef_l[, feature := names(lasso_coef)]       # add feature names
+to_plot_l = melt(coef_l                      # label table
+               , id.vars='feature'
+               , variable.name = 'model'
+               , value.name = 'coefficient')
+ggplot(data=to_plot_l,                       # plot coefficients
+       aes(x=feature, y=coefficient, fill=model)) +
+       coord_flip() +         
+       geom_bar(stat='identity', fill='brown4', color='blue') +
+       facet_wrap(~ model) + guides(fill=FALSE) 
+
+all_coef = data.table (lasso = lasso_coef,
+                   ridge = ridge_coef)
+
 ```
 
 ### Creating randomForest Model to know important features
