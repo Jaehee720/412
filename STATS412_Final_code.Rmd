@@ -1,5 +1,6 @@
 ---
-title: "412 Project"
+title: "[STATS 412] Statistical Modeling of House Prices"
+author: "Tianshu Fan, Jaehee Jeong, Lisa Kaunitz"
 output: pdf_document
 ---
 
@@ -9,6 +10,8 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ### Data
 ```{r wrap-hook}
+# urlPackage <- 'https://cran.r-project.org/src/contrib/Archive/randomForest/randomForest_4.6-14.tar.gz'
+# install.packages(urlPackage, repos=NULL, type="source") 
 library(readr)
 library(dplyr)
 library(ggplot2)
